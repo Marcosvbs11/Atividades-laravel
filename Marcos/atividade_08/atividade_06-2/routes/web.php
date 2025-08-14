@@ -1,0 +1,73 @@
+<?php
+
+use App\Http\Controllers\BookController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\BorrowingController;
+use App\Http\Middleware\RoleMiddleware;
+use Illuminate\Support\Facades\Auth;
+
+// Rota para registrar um empréstimo
+Route::post('/books/{book}/borrow', [BorrowingController::class, 'store'])->name('books.borrow');
+
+// Rota para listar o histórico de empréstimos de um usuário
+Route::get('/users/{user}/borrowings', [BorrowingController::class, 'userBorrowings'])->name('users.borrowings');
+
+// Rota para registrar a devolução
+Route::patch('/borrowings/{borrowing}/return', [BorrowingController::class, 'returnBook'])->name('borrowings.return');
+
+
+
+Route::resource('users', UserController::class)->except(['create', 'store', 'destroy']);
+
+
+
+// Rotas para criação de livros
+Route::get('/books/create-id-number', [BookController::class, 'createWithId'])->name('books.create.id');
+Route::post('/books/create-id-number', [BookController::class, 'storeWithId'])->name('books.store.id');
+
+Route::get('/books/create-select', [BookController::class, 'createWithSelect'])->name('books.create.select');
+Route::post('/books/create-select', [BookController::class, 'storeWithSelect'])->name('books.store.select');
+Route::middleware(['auth', RoleMiddleware::class . ':admin,bibliotecario'])->group(function () {
+    Route::post('/books/{book}/borrow', [BorrowingController::class, 'store'])->name('books.borrow');
+    Route::patch('/borrowings/{borrowing}/return', [BorrowingController::class, 'returnBook'])->name('borrowings.return');
+});
+
+// Rotas RESTful para index, show, edit, update, delete (tem que ficar depois das rotas /books/create-id-number e /books/create-select)
+Route::resource('books', BookController::class)->except(['create', 'store']);
+Route::middleware(['auth'])->group(function () {
+    Route::get('/users/{user}/borrowings', [BorrowingController::class, 'userBorrowings'])->name('users.borrowings');
+});
+
+// Usuários (apenas admin pode visualizar, editar, listar usuários)
+Route::middleware(['auth', RoleMiddleware::class . ':admin'])->group(function () {
+    Route::resource('users', UserController::class)->except(['create', 'store', 'destroy']);
+});
+
+Route::middleware('auth')->get('/books', [BookController::class, 'index'])->name('books.index');
+
+Route::resource('authors', AuthorController::class);
+Route::resource('publishers', PublisherController::class);
+Route::middleware(['auth', RoleMiddleware::class . ':admin,bibliotecario'])->group(function () {
+    Route::get('/books/create-id-number', [BookController::class, 'createWithId'])->name('books.create.id');
+    Route::post('/books/create-id-number', [BookController::class, 'storeWithId'])->name('books.store.id');
+
+    Route::get('/books/create-select', [BookController::class, 'createWithSelect'])->name('books.create.select');
+    Route::post('/books/create-select', [BookController::class, 'storeWithSelect'])->name('books.store.select');
+
+Route::resource('categories', CategoryController::class);
+    Route::resource('books', BookController::class)->except(['create', 'store', 'show', 'index']);
+
+    Route::resource('authors', AuthorController::class)->except(['show']);
+    Route::resource('publishers', PublisherController::class)->except(['show']);
+    Route::resource('categories', CategoryController::class)->except(['show']);
+});
+
+Route::middleware(['auth', RoleMiddleware::class . ':admin,bibliotecario,cliente'])->group(function () {
+    Route::get('books/{book}', [BookController::class, 'show'])->name('books.show');
+    Route::get('authors/{author}', [AuthorController::class, 'show'])->name('authors.show');
+    Route::get('publishers/{publisher}', [PublisherController::class, 'show'])->name('publishers.show');
+    Route::get('categories/{category}', [CategoryController::class, 'show'])->name('categories.show');
+});
+
+Route::get('/', function () {
+    return view('welcome');
